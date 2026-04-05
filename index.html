@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor Ednilton Morais - Oficial</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-color: #1e293b;
+            --accent-color: #38bdf8;
+            --text-color: #f8fafc;
+            --dev-color: #22c55e;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            background-color: var(--card-color);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            border: 1px solid #334155;
+        }
+
+        .dev-header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .dev-header span { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; }
+        .dev-header h1 { margin: 5px 0 0 0; font-size: 26px; color: var(--dev-color); font-weight: 800; letter-spacing: -1px; }
+
+        .section { margin-bottom: 20px; }
+        label { display: block; font-size: 12px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+
+        input[type="file"], input[type="number"], select {
+            width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155;
+            border-radius: 10px; color: white; font-size: 16px; box-sizing: border-box; outline: none;
+        }
+
+        input:focus { border-color: var(--accent-color); }
+
+        .res-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .checkbox-area {
+            display: flex; align-items: center; gap: 10px; margin-top: 12px;
+            padding: 12px; background: rgba(0,0,0,0.3); border-radius: 10px;
+        }
+
+        button {
+            width: 100%; padding: 18px; background-color: var(--accent-color);
+            color: #0f172a; border: none; border-radius: 12px; font-size: 18px;
+            font-weight: bold; cursor: pointer; margin-top: 25px; transition: 0.2s;
+        }
+
+        button:active { transform: scale(0.96); opacity: 0.9; }
+
+        #progress-container { display: none; margin-top: 20px; text-align: center; }
+        .progress-bar { width: 100%; background: #0f172a; border-radius: 10px; height: 12px; margin-top: 10px; overflow: hidden; border: 1px solid #334155; }
+        #progress-fill { width: 0%; height: 100%; background: var(--dev-color); transition: width 0.3s ease; }
+
+        .footer { font-size: 11px; color: #475569; text-align: center; margin-top: 25px; line-height: 1.6; }
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="dev-header">
+        <span>Desenvolvido por</span>
+        <h1>Ednilton Morais</h1>
+    </div>
+
+    <div class="section">
+        <label>1. Carregar Arquivos (Lote Habilitado)</label>
+        <input type="file" id="imgInput" accept="image/*" multiple>
+    </div>
+
+    <div class="section">
+        <label>2. Formato de Destino</label>
+        <select id="outFormat">
+            <option value="image/png">PNG (Qualidade Máxima)</option>
+            <option value="image/jpeg">JPEG (Otimizado)</option>
+            <option value="image/webp">WebP (Moderno/Leve)</option>
+            <option value="image/bmp">BMP (Original Windows)</option>
+        </select>
+    </div>
+
+    <div class="section">
+        <label>3. Redimensionar (Opcional)</label>
+        <div class="res-row">
+            <input type="number" id="outWidth" placeholder="Largura px" min="1">
+            <input type="number" id="outHeight" placeholder="Altura px" min="1">
+        </div>
+        <div class="checkbox-area">
+            <input type="checkbox" id="aspectRatio" checked>
+            <label for="aspectRatio" style="color:white; font-size: 14px; cursor: pointer;">Manter Proporção Original</label>
+        </div>
+    </div>
+
+    <button onclick="processarLote()">INICIAR PROCESSAMENTO</button>
+    
+    <div id="progress-container">
+        <div id="status-text" style="font-weight: bold; color: var(--accent-color);">Preparando...</div>
+        <div class="progress-bar"><div id="progress-fill"></div></div>
+    </div>
+
+    <div class="footer">
+        Sistema 100% Seguro e Offline.<br>
+        Processamento local via Engine V8.
+    </div>
+
+    <canvas id="hiddenCanvas"></canvas>
+</div>
+
+<script>
+    async function processarLote() {
+        const input = document.getElementById('imgInput');
+        const files = Array.from(input.files).filter(f => f.type.startsWith('image/'));
+        const format = document.getElementById('outFormat').value;
+        const wVal = Math.abs(parseInt(document.getElementById('outWidth').value)) || 0;
+        const hVal = Math.abs(parseInt(document.getElementById('outHeight').value)) || 0;
+        const keepRatio = document.getElementById('aspectRatio').checked;
+        
+        const progContainer = document.getElementById('progress-container');
+        const progText = document.getElementById('status-text');
+        const progFill = document.getElementById('progress-fill');
+
+        if (files.length === 0) {
+            alert("Erro: Nenhum arquivo de imagem selecionado.");
+            return;
+        }
+
+        progContainer.style.display = "block";
+
+        for (let i = 0; i < files.length; i++) {
+            progText.innerText = `Processando: ${i + 1} de ${files.length}`;
+            progFill.style.width = `${((i + 1) / files.length) * 100}%`;
+
+            try {
+                await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onerror = reject;
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onerror = reject;
+                        img.onload = () => {
+                            const canvas = document.getElementById('hiddenCanvas');
+                            const ctx = canvas.getContext('2d');
+
+                            let finalW = img.width;
+                            let finalH = img.height;
+
+                            if (wVal || hVal) {
+                                if (wVal && hVal && !keepRatio) {
+                                    finalW = wVal;
+                                    finalH = hVal;
+                                } else if (wVal && (!hVal || keepRatio)) {
+                                    finalW = wVal;
+                                    finalH = Math.round(img.height * (finalW / img.width));
+                                } else if (hVal && (!wVal || keepRatio)) {
+                                    finalH = hVal;
+                                    finalW = Math.round(img.width * (finalH / img.height));
+                                }
+                            }
+
+                            canvas.width = finalW;
+                            canvas.height = finalH;
+                            
+                            ctx.imageSmoothingEnabled = true;
+                            ctx.imageSmoothingQuality = 'high';
+
+                            if (format === "image/jpeg") {
+                                ctx.fillStyle = "#FFFFFF";
+                                ctx.fillRect(0, 0, finalW, finalH);
+                            }
+
+                            ctx.drawImage(img, 0, 0, finalW, finalH);
+
+                            const dataUrl = canvas.toDataURL(format, 1.0);
+                            const extension = format.split('/')[1].replace('jpeg', 'jpg');
+                            
+                            const link = document.createElement('a');
+                            link.download = `ednilton_morais_batch_${i+1}.${extension}`;
+                            link.href = dataUrl;
+                            link.click();
+                            
+                            // Clean up
+                            img.src = "";
+                            resolve();
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(files[i]);
+                });
+            } catch (err) {
+                console.error("Falha ao processar arquivo " + (i + 1));
+            }
+        }
+
+        progText.innerText = "✅ Tudo Pronto! Verifique seus downloads.";
+        setTimeout(() => { progContainer.style.display = "none"; }, 6000);
+    }
+</script>
+
+</body>
+</html>
